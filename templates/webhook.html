@@ -1,0 +1,40 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Your Webhook</title>
+  <style>
+    .log {
+      background: #2f3136;
+      color: white;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-family: monospace;
+    }
+  </style>
+  <script>
+    async function fetchLogs() {
+      const response = await fetch("/logs/{{ webhook_id }}");
+      const logs = await response.json();
+      const container = document.getElementById("log-container");
+      container.innerHTML = "";
+      logs.forEach(log => {
+        const div = document.createElement("div");
+        div.className = "log";
+        div.innerHTML = `<strong>Time:</strong> ${log.time}<br><pre>${JSON.stringify(log.content, null, 2)}</pre>`;
+        container.appendChild(div);
+      });
+    }
+    setInterval(fetchLogs, 3000);
+    window.onload = fetchLogs;
+  </script>
+</head>
+<body>
+  <h2>Hello {{ user }}! Hereâ€™s your Temp Webhook:</h2>
+  <code>{{ request.host }}/hook/{{ webhook_id }}</code>
+
+  <h3>ðŸ“¨ Output (Webhook Logs):</h3>
+  <div id="log-container">Loading...</div>
+</body>
+</html>
