@@ -1,64 +1,44 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
-import uuid
-from datetime import datetime
-from supabase import create_client, Client
+from flask import Flask, request, render_template, jsonify, redirect
+from supabase import create_client
+import os, uuid, hashlib
+from dotenv import load_dotenv
 
-# Supabase credentials (replace with your real ones)
-supabase_url = "https://qtmjlkfyvcmeftcrrnqr.supabase.co"
-supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0bWpsa2Z5dmNtZWZ0Y3JybnFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2NTMxODQsImV4cCI6MjA2MzIyOTE4NH0.dp3JpUXj9JYb1-XIPZfkze-JEEWFRUcHXGSeQyjR7l8"
-supabase: Client = create_client(supabase_url, supabase_key)
-
+load_dotenv()
 app = Flask(__name__)
-app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 
-@app.route('/')
+# Supabase connection
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+
+# Simple user identifier via IP hash (can be improved with auth)
+def get_user_id(req):
+    return hashlib.sha256(req.remote_addr.encode()).hexdigest()
+
+@app.route("/")
 def index():
-    return render_template("index.html")
+    user_id = get_user_id(request)
+    data = supabase.table("webhooks").select("*").eq("user_id", user_id).execute().data
+    if data:
+        path = data[0]["url_path"]
+    else:
+        path = str(uuid.uuid4())
+        supabase.table("webhooks").insert({"user_id": user_id, "url_path": path}).execute()
+    return render_template("index.html", webhook_url=f"{request.host_url}webhook/{path}")
 
-@app.route('/create_webhook', methods=['POST'])
-def create_webhook():
-    user_name = request.form.get("username", "User")
-    webhook_id = str(uuid.uuid4())
+@app.route("/webhook/<path>", methods=["POST"])
+def webhook(path):
+    # Validate the webhook path exists
+    result = supabase.table("webhooks").select("*").eq("url_path", path).execute().data
+    if not result:
+        return "Invalid webhook", 404
 
-    supabase.table("temp_webhooks").insert({
-        "user_name": user_name,
-        "webhook_id": webhook_id,
-        "logs": []
-    }).execute()
+    user_id = result[0]["user_id"]
+    payload = request.get_json(force=True)
+    supabase.table("messages").insert({"user_id": user_id, "content": payload}).execute()
+    return "OK", 200
 
-    return redirect(url_for('webhook_page', webhook_id=webhook_id))
-
-@app.route('/webhook/<webhook_id>', methods=['GET'])
-def webhook_page(webhook_id):
-    data = supabase.table("temp_webhooks").select("*").eq("webhook_id", webhook_id).single().execute()
-    if data.data:
-        return render_template("webhook.html", webhook_id=webhook_id, user=data.data["user_name"])
-    return "Webhook not found", 404
-
-@app.route('/hook/<webhook_id>', methods=['POST'])
-def receive_webhook(webhook_id):
-    body = request.get_json(force=True)
-    entry = {
-        "time": datetime.utcnow().isoformat(),
-        "content": body
-    }
-
-    existing = supabase.table("temp_webhooks").select("logs").eq("webhook_id", webhook_id).single().execute()
-    if existing.data:
-        logs = existing.data.get("logs", [])
-        logs.append(entry)
-        supabase.table("temp_webhooks").update({
-            "logs": logs
-        }).eq("webhook_id", webhook_id).execute()
-
-    return jsonify({"status": "received"}), 200
-
-@app.route('/logs/<webhook_id>', methods=['GET'])
-def get_logs(webhook_id):
-    data = supabase.table("temp_webhooks").select("logs").eq("webhook_id", webhook_id).single().execute()
-    if data.data:
-        return jsonify(data.data["logs"])
-    return jsonify([])
-
-if __name__ == "__main__":
-    app.run(debug=True)
+@app.route("/fetch")
+def fetch():
+    user_id = get_user_id(request)
+    result = supabase.table("messages").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(50).execute()
+    return jsonify(result.data)
+    
