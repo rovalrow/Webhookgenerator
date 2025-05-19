@@ -4,8 +4,8 @@ from datetime import datetime
 from supabase import create_client, Client
 
 # Supabase credentials (replace with your real ones)
-supabase_url = "https://your-project-id.supabase.co"
-supabase_key = "your-anon-or-service-role-key"
+supabase_url = "https://qtmjlkfyvcmeftcrrnqr.supabase.co"
+supabase_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF0bWpsa2Z5dmNtZWZ0Y3JybnFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2NTMxODQsImV4cCI6MjA2MzIyOTE4NH0.dp3JpUXj9JYb1-XIPZfkze-JEEWFRUcHXGSeQyjR7l8"
 supabase: Client = create_client(supabase_url, supabase_key)
 
 app = Flask(__name__)
