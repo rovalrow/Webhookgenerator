@@ -1,15 +1,129 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Temp Webhook Generator</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TempWebhook</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at center, #181a1b 0%, #121314 100%);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px;
+    }
+
+    .title {
+      font-size: 2.2rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: #b0b3b8;
+      text-align: center;
+      margin-bottom: 25px;
+      max-width: 500px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .button {
+      background-color: #5865F2;
+      border: none;
+      color: white;
+      padding: 12px 20px;
+      font-size: 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .button:hover {
+      background-color: #4752c4;
+    }
+
+    .log-title {
+      font-size: 1.1rem;
+      margin-bottom: 10px;
+    }
+
+    .log-box {
+      background-color: #1e1f22;
+      border-radius: 10px;
+      padding: 15px;
+      width: 100%;
+      max-width: 600px;
+      height: 320px;
+      overflow-y: auto;
+      box-shadow: 0 0 10px #00000050;
+    }
+
+    .msg {
+      border-bottom: 1px solid #2b2d31;
+      padding: 8px 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
 </head>
 <body>
-  <h2>Hello User! Here's your temp webhook</h2>
-  <form method="post" action="/create_webhook">
-    <label>Enter Your Name:</label>
-    <input type="text" name="username" required>
-    <button type="submit">Generate Webhook</button>
-  </form>
+  <div class="title">Your Personal TempWebhook</div>
+  <div class="subtitle">
+    Click the button below to copy your webhook. Messages sent to it will appear below.
+  </div>
+
+  <div class="button-row">
+    <button class="button" onclick="copyWebhook()">Copy Webhook URL</button>
+  </div>
+
+  <div class="log-title">Webhook Output:</div>
+  <div class="log-box" id="messages">
+    <div style="color: #888;">Waiting for incoming data...</div>
+  </div>
+
+  <script>
+    const webhookURL = "{{ webhook_url }}";
+    
+    function copyWebhook() {
+      navigator.clipboard.writeText(webhookURL);
+      alert("Copied to clipboard: " + webhookURL);
+    }
+
+    async function loadMessages() {
+      const res = await fetch("/fetch");
+      const data = await res.json();
+      const container = document.getElementById("messages");
+      container.innerHTML = "";
+      if (data.length === 0) {
+        container.innerHTML = "<div style='color: #888;'>No webhook messages yet.</div>";
+        return;
+      }
+      data.forEach(msg => {
+        const div = document.createElement("div");
+        div.className = "msg";
+        if (msg.content.embeds) {
+          const embed = msg.content.embeds[0];
+          div.innerHTML = `<strong>${embed.title || "Embed"}</strong><br>${embed.description || ""}`;
+        } else {
+          div.textContent = JSON.stringify(msg.content, null, 2);
+        }
+        container.appendChild(div);
+      });
+    }
+
+    setInterval(loadMessages, 3000);
+    loadMessages();
+  </script>
 </body>
 </html>
