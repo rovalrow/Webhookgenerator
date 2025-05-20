@@ -4,27 +4,27 @@ from supabase.lib.client_options import ClientOptions
 import os, uuid, hashlib, time
 from dotenv import load_dotenv
 
-# Load environment variables from .env
+# Load environment variables (Render uses .env dashboard settings)
 load_dotenv()
 
 app = Flask(__name__)
 
-# Environment variables (RENDER will inject these automatically if set in the dashboard)
+# Read Supabase credentials from environment
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Supabase connection with timeout
+# Create Supabase client (no timeout arg!)
 supabase = create_client(
     SUPABASE_URL,
     SUPABASE_KEY,
-    options=ClientOptions(schema="public", timeout=5)
+    options=ClientOptions(schema="public")
 )
 
-# Generate a unique user identifier from IP address
+# Generate user ID based on IP
 def get_user_id(req):
     return hashlib.sha256(req.remote_addr.encode()).hexdigest()
 
-# Prevent caching and force connection close (optional)
+# Disable caching
 @app.after_request
 def add_header(response):
     response.headers["Cache-Control"] = "no-store"
@@ -86,7 +86,7 @@ def fetch():
     print(f"/fetch took {duration:.2f} seconds")
     return jsonify(result.data)
 
-# Only for local development — do not include when deploying on Render
+# Only for local development; not used in Render
 if __name__ == "__main__":
     app.run(debug=True)
     
